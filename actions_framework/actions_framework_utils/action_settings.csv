@@ -1,0 +1,9 @@
+Method to use,Value (v),Description
+zScore,3,"zScore
+the signed number of standard deviation by which the data point is above the mean value of what is being observed or measured.
+Outlier = (zScore(data) > v) OR (zScore(data) > -v)
+
+
+IQR
+Inter-quartile range is the difference between 75th percentile (Q3) and 25th percentiles (Q1)
+Outlier = data < (Q1 - v * IQR)) OR (data > (Q3 + 1.5 * IQR))"

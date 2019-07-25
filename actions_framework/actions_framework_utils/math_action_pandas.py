@@ -72,6 +72,7 @@ class Math(Action):
         })
         table_dfs = self.read_data('data_schema')
 
+        # sum=0
         for _, table_config_series in table_config_df.iterrows():
             table_name = table_config_series['Table Name']
             op1_column_name = table_config_series['Operand 1']
@@ -85,6 +86,11 @@ class Math(Action):
                 ),
                 axis=1
             )
+            # for item in table_df[op1_column_name]:
+            #     sum = sum + float(item)
+            #
+            # print("Sum is of first operand column is :", sum)
+
         self.write_data(table_dfs)
 
 
