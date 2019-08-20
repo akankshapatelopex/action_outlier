@@ -8,9 +8,9 @@ from urllib.parse import urlparse
 import json
 from abc import ABCMeta, abstractmethod
 from itertools import chain
-import operator
+from types import MethodType
 
-# todo add docstrings
+
 def ensure_packages(*package_names):
     import importlib, sys, subprocess
     for package_name in package_names:
@@ -28,6 +28,8 @@ def ensure_packages(*package_names):
                 )
                 sys.exit(install_error.returncode)
 
+
+# todo add pandas also
 ensure_packages('ticdat')
 from ticdat import TicDatFactory, PanDatFactory
 
@@ -48,8 +50,8 @@ class Action(metaclass=ABCMeta):
                     f"Add a docstring to '{method_name}' method"
                 )
             elif (
-                method_name == 'execute_action' and
-                inspect.getdoc(getattr(Action, method_name)) == method_doc
+                    method_name == 'execute_action' and
+                    inspect.getdoc(getattr(Action, method_name)) == method_doc
             ):
                 raise Exception(
                     f"Add a docstring to execute_action method"
@@ -94,7 +96,7 @@ class Action(metaclass=ABCMeta):
                 action._enframe_scenario_name = scenario_name
                 action._data_source_mappings['enframe'] = {}
                 action.set_enframe_data_source(
-                    '', 
+                    '',
                     {
                         'db_url': action.enframe_db_url,
                         'db_schema': action.enframe_scenario_name
@@ -102,8 +104,8 @@ class Action(metaclass=ABCMeta):
                 )
                 action.set_enframe_data_source('config_schema', {
                     'db_schema': (
-                        type(action).__name__.lower()
-                        + '_' + action._enframe_scenario_name
+                            type(action).__name__.lower()
+                            + '_' + action._enframe_scenario_name
                     )
                 })
         return action
@@ -112,7 +114,7 @@ class Action(metaclass=ABCMeta):
     def is_running_on_enframe(self):
         """Indicates whether the action is running on Enframe or locally"""
         return getattr(self, '_is_running_on_enframe', False)
-    
+
     @is_running_on_enframe.setter
     def is_running_on_enframe(self, value):
         if type(value) is not bool:
@@ -124,7 +126,7 @@ class Action(metaclass=ABCMeta):
         fset=None, fdel=None,
         doc='URL for Enframe app database of the action'
     )
-    
+
     enframe_scenario_name = property(
         fget=lambda self: getattr(self, '_enframe_scenario_name', None),
         fset=None, fdel=None,
@@ -147,7 +149,8 @@ class Action(metaclass=ABCMeta):
                 )
             )
             config_schema_name = (
-                type(self).__name__.lower() + '_' + self.enframe_scenario_name
+                    type(
+                        self).__name__.lower() + '_' + self.enframe_scenario_name
             )
             for schema_name in schema_names:
                 if schema_name == config_schema_name:
@@ -159,12 +162,12 @@ class Action(metaclass=ABCMeta):
     @staticmethod
     def _is_correct_schema(tic_or_pan_dat, tic_or_pan_dat_schema):
         return (
-            (type(tic_or_pan_dat) is
-                getattr(tic_or_pan_dat_schema, 'TicDat', None)
-            ) or
-            (type(tic_or_pan_dat) is
-                getattr(tic_or_pan_dat_schema, 'PanDat', None)
-            )
+                (type(tic_or_pan_dat) is
+                 getattr(tic_or_pan_dat_schema, 'TicDat', None)
+                 ) or
+                (type(tic_or_pan_dat) is
+                 getattr(tic_or_pan_dat_schema, 'PanDat', None)
+                 )
         )
 
     @property
@@ -175,8 +178,8 @@ class Action(metaclass=ABCMeta):
     @config_schema.setter
     def config_schema(self, tic_or_pan_dat_schema):
         if (
-            type(self.config_schema) not in
-            (TicDatFactory, PanDatFactory, type(None))
+                type(self.config_schema) not in
+                (TicDatFactory, PanDatFactory, type(None))
         ):
             raise TypeError(
                 "'config_schema' should be a TicDatFactory/PanDatFactory "
@@ -185,7 +188,7 @@ class Action(metaclass=ABCMeta):
 
         self._config_schema = tic_or_pan_dat_schema
         if not tic_or_pan_dat_schema:
-            return 
+            return
 
         schema_info = tic_or_pan_dat_schema.schema()
         for table_name, primary_and_data_fields in schema_info.items():
@@ -216,7 +219,6 @@ class Action(metaclass=ABCMeta):
             )
         self._config_defaults = tic_or_pan_dat
 
-
     def setup_enframe_ui(self):
         '''Sets up UI for configuration tables on Enframe'''
         if not self.is_running_on_enframe:
@@ -235,7 +237,7 @@ class Action(metaclass=ABCMeta):
                  'visiblecolumns', 'editablecolumns', 'select_query', 'tag',
                  'columnfloat', 'version', 'filter', 'created_at',
                  'updated_at', 'created_by', 'updated_by'
-                ]
+                 ]
             ],
             'lkp_views': [
                 ['id'], ['table_id', 'definition']
@@ -245,14 +247,14 @@ class Action(metaclass=ABCMeta):
                 ['scenario_template_id', 'order_id', 'name', 'tag_id',
                  'status', 'version', 'created_at', 'updated_at', 'archived_at',
                  'created_by', 'updated_by', 'archived_by'
-                ]
+                 ]
             ],
             'project_tables': [
                 ['id'],
                 ['pid', 'name', 'file_name', 'table_name', 'status', 'visible',
                  'type', 'columns', 'created_at', 'updated_at', 'created_by',
                  'updated_by'
-                ]
+                 ]
             ]
         }
         self._enframe_ui = TicDatFactory(**enframe_ui_tables)
@@ -262,7 +264,7 @@ class Action(metaclass=ABCMeta):
 
         current_project_tuple = next(filter(
             lambda key_and_row: (
-                key_and_row[1]['name'].lower().replace(' ', '_') ==
+                    key_and_row[1]['name'].lower().replace(' ', '_') ==
                     self.enframe_scenario_name
             ),
             ui_data.projects.items()
@@ -275,7 +277,7 @@ class Action(metaclass=ABCMeta):
         project_version = current_project_tuple[1]['version']
         scenario_template_id = current_project_tuple[1]['scenario_template_id']
 
-        config_schema_name = action_db_name + '_' +  self.enframe_scenario_name
+        config_schema_name = action_db_name + '_' + self.enframe_scenario_name
         self.enframe_connection.execute(
             f'CREATE SCHEMA IF NOT EXISTS {config_schema_name};'
         )
@@ -309,7 +311,7 @@ class Action(metaclass=ABCMeta):
                 key: row
                 for key, row in ui_data.project_tables.items()
                 if row['pid'] != project_id or
-                row['table_name'] != table_db_name
+                   row['table_name'] != table_db_name
             }
             next_project_tables_id = max(chain(ui_data.project_tables, [0])) + 1
             ui_data.project_tables[next_project_tables_id] = {
@@ -330,7 +332,7 @@ class Action(metaclass=ABCMeta):
             ui_data.lkp_data_upload_tables = [
                 row for row in ui_data.lkp_data_upload_tables
                 if row['scenario_template_id'] != scenario_template_id or
-                row['tablename'] != table_db_name
+                   row['tablename'] != table_db_name
             ]
             ui_data.lkp_data_upload_tables.append({
                 'id': max(
@@ -388,8 +390,8 @@ class Action(metaclass=ABCMeta):
             # todo change scenario_template_id
             table_id = next(filter(
                 lambda row: (
-                    row['scenario_template_id'] == scenario_template_id
-                    and row['tablename'] == table_db_name
+                        row['scenario_template_id'] == scenario_template_id
+                        and row['tablename'] == table_db_name
                 ),
                 ui_data.lkp_data_upload_tables
             ))['id']
@@ -405,7 +407,7 @@ class Action(metaclass=ABCMeta):
                 if row['definition'] != view_definition
             }
             ui_data.lkp_views[max(chain(ui_data.lkp_views, [0])) + 1] = {
-                'table_id': table_id, 
+                'table_id': table_id,
                 'definition': view_definition
             }
 
@@ -430,8 +432,8 @@ class Action(metaclass=ABCMeta):
     @staticmethod
     def _get_schema_and_table_name(schema_or_table_name):
         if (
-            not isinstance(schema_or_table_name, str)
-            or len(schema_or_table_name.split('.')) not in (1, 2)
+                not isinstance(schema_or_table_name, str)
+                or len(schema_or_table_name.split('.')) not in (1, 2)
         ):
             raise ValueError(
                 f'Check {schema_or_table_name}\n'
@@ -455,8 +457,8 @@ class Action(metaclass=ABCMeta):
     # todo check this for file_or_dir
     @staticmethod
     def _get_data_source(
-        data_source_mappings, schema_or_table_name,
-        include_data_source_type=False
+            data_source_mappings, schema_or_table_name,
+            include_data_source_type=False
     ):
         def get_return_value(data_source_and_type, **kwargs):
             if not include_data_source_type:
@@ -465,12 +467,12 @@ class Action(metaclass=ABCMeta):
                 return data_source_and_type
 
         def set_hierarchical_params(
-            data_source_and_type, default_data_source_and_type_list
+                data_source_and_type, default_data_source_and_type_list
         ):
             def set_default_param(data_source, param):
                 if param not in data_source:
                     for (
-                        default_data_source, _
+                            default_data_source, _
                     ) in default_data_source_and_type_list:
                         if param in default_data_source:
                             data_source[param] = default_data_source[param]
@@ -501,8 +503,8 @@ class Action(metaclass=ABCMeta):
             if schema_name not in data_source_mappings['schemas']:
                 data_source_and_type = data_source_mappings['source']
             elif (
-                table_name not in
-                data_source_mappings['schemas'][schema_name]['tables']
+                    table_name not in
+                    data_source_mappings['schemas'][schema_name]['tables']
             ):
                 data_source_and_type = (
                     data_source_mappings['schemas'][schema_name]['source']
@@ -510,7 +512,7 @@ class Action(metaclass=ABCMeta):
             else:
                 data_source_and_type = (
                     data_source_mappings['schemas']
-                        [schema_name]['tables'][table_name]['source']
+                    [schema_name]['tables'][table_name]['source']
                 )
 
             # DB table name is the same as table name in TicDat schema
@@ -525,7 +527,7 @@ class Action(metaclass=ABCMeta):
                 ]
             )
         return get_return_value(data_source_and_type)
-        
+
     @staticmethod
     def _get_data_source_type(data_source):
         if isinstance(data_source, str):
@@ -543,8 +545,8 @@ class Action(metaclass=ABCMeta):
             return 'file_or_dir'
         elif isinstance(data_source, dict) and data_source:
             if (
-                data_source.get('db_url', None)
-                and not data_source.get('db_schema', None)
+                    data_source.get('db_url', None)
+                    and not data_source.get('db_schema', None)
             ):
                 raise ValueError(
                     f'Check {data_source}\n'
@@ -552,10 +554,10 @@ class Action(metaclass=ABCMeta):
                     "present in the 'data_source' dictionary"
                 )
             elif (
-                'db_url' in data_source
-                and urlparse(data_source['db_url']).scheme not in (
-                    'postgresql', 'postgres'
-                )
+                    'db_url' in data_source
+                    and urlparse(data_source['db_url']).scheme not in (
+                            'postgresql', 'postgres'
+                    )
             ):
                 raise ValueError(
                     f'Check {data_source}\n'
@@ -614,11 +616,11 @@ class Action(metaclass=ABCMeta):
     # todo data sources can also be ticdat/pandat objects
     @staticmethod
     def _set_data_source(
-        data_source_mappings, schema_or_table_name, data_source,
-        data_source_type=None
+            data_source_mappings, schema_or_table_name, data_source,
+            data_source_type=None
     ):
         data_source_type = (
-            data_source_type or Action._get_data_source_type(data_source)
+                data_source_type or Action._get_data_source_type(data_source)
         )
         if data_source_type == 'db':
             Action._check_db_data_source(schema_or_table_name, data_source)
@@ -633,19 +635,19 @@ class Action(metaclass=ABCMeta):
                 data_source_mappings \
                     .setdefault('schemas', {}) \
                     .setdefault(schema_name, {})['source'] = (
-                        data_source, data_source_type
-                    )
+                    data_source, data_source_type
+                )
             else:
                 data_source_mappings \
                     .setdefault('schemas', {}) \
                     .setdefault(schema_name, {}) \
                     .setdefault('tables', {}) \
                     .setdefault(table_name, {})['source'] = (
-                        data_source, data_source_type
-                    )
+                    data_source, data_source_type
+                )
 
     def get_enframe_data_source(
-        self, schema_or_table_name, include_data_source_type=False
+            self, schema_or_table_name, include_data_source_type=False
     ):
         '''
         Get the data source being used for a TicDat schema/table when the action
@@ -669,7 +671,7 @@ class Action(metaclass=ABCMeta):
         )
 
     def get_local_data_source(
-        self, schema_or_table_name, include_data_source_type=False
+            self, schema_or_table_name, include_data_source_type=False
     ):
         '''
         Get the data source being used for a TicDat schema/table when the action
@@ -748,19 +750,25 @@ class Action(metaclass=ABCMeta):
 
     @staticmethod
     def _read_data_from_db(
-        tic_or_pan_dat_schema, db_engine_or_url, db_schema
+            tic_or_pan_dat_schema, db_engine_or_url, db_schema
     ):
         ensure_packages('sqlalchemy', 'framework_utils')
         from sqlalchemy.engine import Connectable
-        from framework_utils.pgtd import PostgresTicFactory
+        from framework_utils.pgtd import PostgresTicFactory, PostgresPanFactory
+
         if isinstance(db_engine_or_url, Connectable):
             db_engine = db_engine_or_url
         else:
             from sqlalchemy import create_engine
             db_engine = create_engine(db_engine_or_url)
-        return PostgresTicFactory(tic_or_pan_dat_schema).create_tic_dat(
-            db_engine, db_schema
-        )
+
+        if type(tic_or_pan_dat_schema) is TicDatFactory:
+            read_method = \
+                PostgresTicFactory(tic_or_pan_dat_schema).create_tic_dat
+        else:
+            read_method = \
+                PostgresPanFactory(tic_or_pan_dat_schema).create_pan_dat
+        return read_method(db_engine, db_schema)
 
     # todo use superticdat to read subsets of tables
     def read_data(self, *schema_or_table_names):
@@ -768,8 +776,8 @@ class Action(metaclass=ABCMeta):
         Read data for a TicDat schema/table from its corresponding data source
         '''
         if not all(
-            isinstance(schema_or_table_name, str)
-            for schema_or_table_name in schema_or_table_names
+                isinstance(schema_or_table_name, str)
+                for schema_or_table_name in schema_or_table_names
         ):
             raise ValueError(
                 'Every argument should be str of the form <schema_name> '
@@ -814,8 +822,8 @@ class Action(metaclass=ABCMeta):
                 )
             elif data_source_type == 'db':
                 if (
-                    'db_url' not in data_source
-                    or 'db_schema' not in data_source
+                        'db_url' not in data_source
+                        or 'db_schema' not in data_source
                 ):
                     missing_param = (
                         'db_url' if 'db_url' not in data_source
@@ -853,8 +861,8 @@ class Action(metaclass=ABCMeta):
                 return schema_name
         for attr, value in vars(self).items():
             if (
-                type(value) in (TicDatFactory, PanDatFactory)
-                and Action._is_correct_schema(tic_or_pan_dat, value)
+                    type(value) in (TicDatFactory, PanDatFactory)
+                    and Action._is_correct_schema(tic_or_pan_dat, value)
             ):
                 return attr
 
@@ -868,7 +876,7 @@ class Action(metaclass=ABCMeta):
     def check_data(self, *tic_or_pan_dats):
         '''
         Check if TicDat/PanDat objects violate the data constraints
-        defined on their corresponding TicDatFactory/PanDatFactory schemas 
+        defined on their corresponding TicDatFactory/PanDatFactory schemas
         '''
         for tic_or_pan_dat in tic_or_pan_dats:
             schema_name = self._get_tic_or_pan_dat_schema_name(tic_or_pan_dat)
@@ -893,7 +901,7 @@ class Action(metaclass=ABCMeta):
 
     @staticmethod
     def _write_data_to_file_system(
-        tic_or_pan_dat_schema, tic_or_pan_dat, file_or_dir_path
+            tic_or_pan_dat_schema, tic_or_pan_dat, file_or_dir_path
     ):
         data_path, data_file_type, extension = Action._get_data_path_and_type(
             file_or_dir_path, include_extension=True
@@ -919,36 +927,74 @@ class Action(metaclass=ABCMeta):
 
     @staticmethod
     def _create_tables_in_db(
-        tic_or_pan_dat_schema, db_engine_or_url, db_schema,
+            tic_or_pan_dat_schema, db_engine_or_url, db_schema,
     ):
         ensure_packages('sqlalchemy', 'framework_utils')
         from sqlalchemy.engine import Connectable
-        from framework_utils.pgtd import PostgresTicFactory
+        from framework_utils.pgtd import PostgresTicFactory, PostgresPanFactory
+
         if isinstance(db_engine_or_url, Connectable):
             db_engine = db_engine_or_url
         else:
             from sqlalchemy import create_engine
             db_engine = create_engine(db_engine_or_url)
-        # todo check this
-        tic_factory = PostgresTicFactory(tic_or_pan_dat_schema)
-        for str in tic_factory._get_schema_sql(tic_or_pan_dat_schema.all_tables, db_schema):
-            str = str.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS')
-            db_engine.execute(str)
 
+        postgres_factory = (
+            PostgresTicFactory(tic_or_pan_dat_schema)
+            if type(tic_or_pan_dat_schema) is TicDatFactory
+            else PostgresPanFactory(tic_or_pan_dat_schema)
+        )
+
+        original_setattr = type(postgres_factory).__setattr__
+
+        def modified_setattr(self, name, value):
+            object.__setattr__(self, name, value)
+
+        original_get_schema_sql = type(postgres_factory)._get_schema_sql
+
+        def modified_get_schema_sql(self, *args, **kwargs):
+            return tuple(
+                sql_create_statement.replace(
+                    'CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'
+                )
+                for sql_create_statement in original_get_schema_sql(
+                    self, *args, **kwargs
+                )
+            )
+
+        type(postgres_factory).__setattr__ = modified_setattr
+        postgres_factory._get_schema_sql = MethodType(
+            modified_get_schema_sql, postgres_factory
+        )
+        postgres_factory.write_schema(db_engine, db_schema)
+        postgres_factory._get_schema_sql = MethodType(
+            original_get_schema_sql, postgres_factory
+        )
+        type(postgres_factory).__setattr__ = original_setattr
+
+    # todo move out the common code from read/write db methods
     @staticmethod
     def _write_data_to_db(
-        tic_or_pan_dat_schema, tic_or_pan_dat, db_engine_or_url, db_schema,
-        **kwargs
+            tic_or_pan_dat_schema, tic_or_pan_dat, db_engine_or_url, db_schema,
+            **kwargs
     ):
         ensure_packages('sqlalchemy', 'framework_utils')
         from sqlalchemy.engine import Connectable
-        from framework_utils.pgtd import PostgresTicFactory
+        from framework_utils.pgtd import PostgresTicFactory, PostgresPanFactory
+
         if isinstance(db_engine_or_url, Connectable):
             db_engine = db_engine_or_url
         else:
             from sqlalchemy import create_engine
             db_engine = create_engine(db_engine_or_url)
-        PostgresTicFactory(tic_or_pan_dat_schema).write_db_data(
+
+        postgres_factory = (
+            PostgresTicFactory(tic_or_pan_dat_schema)
+            if type(tic_or_pan_dat_schema) is TicDatFactory
+            else PostgresPanFactory(tic_or_pan_dat_schema)
+        )
+
+        postgres_factory.write_data(
             tic_or_pan_dat, db_engine, db_schema,
             **kwargs
         )
@@ -960,14 +1006,14 @@ class Action(metaclass=ABCMeta):
         Write data for a TicDat schema/table to its corresponding data source
         '''
         if not all(
-            (
-                'ticdat.ticdatfactory.TicDatFactory.__init__.<locals>.TicDat'
-                    in str(type(tic_or_pan_dat))
-                or
-                'ticdat.pandatfactory.PanDatFactory.__init__.<locals>.PanDat'
-                    in str(type(tic_or_pan_dat))
-            )
-            for tic_or_pan_dat in tic_or_pan_dats
+                (
+                        'ticdat.ticdatfactory.TicDatFactory.__init__.<locals>.TicDat'
+                        in str(type(tic_or_pan_dat))
+                        or
+                        'ticdat.pandatfactory.PanDatFactory.__init__.<locals>.PanDat'
+                        in str(type(tic_or_pan_dat))
+                )
+                for tic_or_pan_dat in tic_or_pan_dats
         ):
             raise ValueError(
                 'Every argument other than keyword arguments should be a '
@@ -991,8 +1037,8 @@ class Action(metaclass=ABCMeta):
                 )
             elif data_source_type == 'db':
                 if (
-                    'db_url' not in data_source
-                    or 'db_schema' not in data_source
+                        'db_url' not in data_source
+                        or 'db_schema' not in data_source
                 ):
                     missing_param = (
                         'db_url' if 'db_url' not in data_source
@@ -1005,7 +1051,6 @@ class Action(metaclass=ABCMeta):
                         'for any of the following: all schemas, the schema '
                         'to be written or the table to be written.'
                     )
-                pgtd_write_db_data_kwargs.setdefault('allow_overwrite', True)
                 if pgtd_write_db_data_kwargs.pop('create_tables', False):
                     Action._create_tables_in_db(
                         tic_or_pan_dat_schema,
@@ -1039,14 +1084,14 @@ class Action(metaclass=ABCMeta):
     def schema_names(self):
         """
         A list of all the public schemas defined by the action.
-        Note that these are all the schemas defined as public 
+        Note that these are all the schemas defined as public
         property attributes of the action.
         """
         # This is required as inspect.getmembers becomes recursive
         # when inspect.getmembers is used on an action object
         if (
-            inspect.stack()[1].function == 'getmembers'
-            and inspect.stack()[1].filename.endswith('inspect.py')
+                inspect.stack()[1].function == 'getmembers'
+                and inspect.stack()[1].filename.endswith('inspect.py')
         ):
             return type(self).schema_names
         else:
@@ -1056,7 +1101,7 @@ class Action(metaclass=ABCMeta):
                     type(self), inspect.isdatadescriptor
                 )
                 if not name.startswith('_') and name != 'schema_names'
-                and type(desc.fget(self)) in (TicDatFactory, PanDatFactory)
+                   and type(desc.fget(self)) in (TicDatFactory, PanDatFactory)
             ]
 
     @property
@@ -1065,8 +1110,8 @@ class Action(metaclass=ABCMeta):
         # This is required as inspect.getmembers becomes recursive
         # when inspect.getmembers is used on an action object
         if (
-            inspect.stack()[1].function == 'getmembers'
-            and inspect.stack()[1].filename.endswith('inspect.py')
+                inspect.stack()[1].function == 'getmembers'
+                and inspect.stack()[1].filename.endswith('inspect.py')
         ):
             return type(self).method_names
         else:

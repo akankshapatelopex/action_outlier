@@ -31,38 +31,24 @@ class Outlier(Action):
 
     def __init__(self):
         self.config_schema = PanDatFactory(
-            data_settings=[
-                [], ['Table Name', 'Column to analyze', 'Outlier flag column']
-            ],
-            action_settings=[[], ['Method to use', 'Value (v)', 'Description']]
+            action_settings=[[], ['Table', 'Column', 'Method', 'Value',
+                                  'Flag Column']]
         )
 
         self.config_defaults = self.config_schema.PanDat(
-            data_settings=pd.DataFrame([{
-                'Table Name': 'data',
-                'Column to analyze': 'Find outlier',
-                'Outlier flag column': 'Result'
-            }]),
             action_settings=[{
-                'Method to use': 'zScore',
-                'Value (v)': '3',
-                'Description': 'zScore: the signed number of standard deviations'
-                               ' by which the data point is above the mean value'
-                               ' of what is being observed or measured. \n '
-                               'Outlier = (zScore(data) > v) OR (zScore(data) '
-                               '> -v)\n \n'
-                               'IQR: Inter-quartile range is the difference ' 
-                               'between 75th and 25th percentiles, which are '
-                               'Q1 and Q3, respectively.\n'
-                               'Outlier = data < (Q1 - v * IQR)) OR ('
-                               'data > (Q3 + 1.5 * IQR))'
+                'Table': 'data',
+                'Column': 'column1',
+                'Method': 'zScore',
+                'Value': '3',
+                'Flag Column': 'flag'
             }]
         )
 
     def execute_action(self):
         """
-        Peforms outlier/anomaly detection on tables as specified in the
-        configuration
+        Performs outlier/anomaly detection on fields/columns based on zScore,
+        inter-quartile range or bounds
         """
 
         config_dfs = self.read_data('config_schema')
@@ -70,64 +56,118 @@ class Outlier(Action):
         # parsing action config table into a dataframe
         action_config_df = config_dfs.action_settings
 
-        z_threshold=0
-        iqr_multiplier=0
-        # TODO This means same method will be used for all row. What if we
-        #  need different methods?
-        if action_config_df['Method to use'].iloc[0] == 'zScore':
-            z_threshold = action_config_df.loc[
-                action_config_df['Method to use'] == 'zScore'
-                ]['Value (v)'].iloc[0]
-
-        elif action_config_df['Method to use'].iloc[0] == 'IQR':
-            iqr_multiplier = action_config_df.loc[
-                action_config_df['Method to use'] == 'IQR'
-                ]['Value (v)'].iloc[0]
-        else:
-            print("Error: Please enter a valid value in Method to use.")
-
-        print("Parsed action config:, z_threshold: ", z_threshold,
-              ", IQR multiplier: ", iqr_multiplier)
-        # reading data config table
-        table_config_df = config_dfs.data_settings
+        table_col_dict = {}
+        table_flag_col_dict = {}
+        for _, series in action_config_df.iterrows():
+            if series['Table'] in table_col_dict.keys():
+                table_col_dict[series['Table']].add(str(series['Column']))
+            else:
+                table_col_dict[series['Table']] = {series['Column']}
+                table_flag_col_dict[series['Table']] = {series['Flag '
+                                                                  'Column']}
+            # print("table_col_dict", table_col_dict)
+            # print("table_flag_col_dict", table_flag_col_dict)
 
         self.data_schema = PanDatFactory(**{
-            series['Table Name']: [
-                [], [series['Column to analyze'], series['Outlier flag column']]
+            table: [
+                [], list(table_col_dict[table]) + list(table_flag_col_dict[
+                                                           table])
             ]
-            for _, series in table_config_df.iterrows()
+            for table in table_col_dict.keys()
         })
+
         table_dfs = self.read_data('data_schema')
 
-        # processing data
-        for _, table_config_series in table_config_df.iterrows():
-            table_name = table_config_series['Table Name']
-            col_to_analyze = table_config_series['Column to analyze']
-            col_outlier = table_config_series['Outlier flag column']
-            table_df = getattr(table_dfs, table_name)
+        # processing data in dataframe
 
-            numbers_l = []
-            for item in table_df[col_to_analyze]:
-                numbers_l.append(float(item))
+        for i in range(0,action_config_df.shape[0]):
+            # print("\n *** Executing row", i, "in actions ***")
+            table_name=action_config_df['Table'].iloc[i]
+            col_to_analyze=action_config_df['Column'].iloc[i]
+            flag_column=action_config_df['Flag Column'].iloc[i]
+            # print("Table: ", table_name, ", column to analyze: ",
+            #       col_to_analyze, ", flag column: ", flag_column)
+            z_threshold = 0
+            iqr_multiplier = 0
+            lb = 0
+            ub = 0
+            if action_config_df['Method'].iloc[i] == 'zScore':
+                z_threshold = float(action_config_df['Value'].iloc[i])
+                table_df = getattr(table_dfs, table_name)
 
-            numpy_num_array = np.array(numbers_l)
-            std_dev = np.std(numpy_num_array)
-            mean = np.mean(numbers_l)
+                numbers_l = []
+                for item in table_df[col_to_analyze]:
+                    numbers_l.append(float(item))
+                numpy_num_array = np.array(numbers_l)
+                std_dev = np.std(numpy_num_array)
+                mean = np.mean(numbers_l)
+                # print("Mean: ", mean, "Standard deviation: ", std_dev)
+                # print("z_threshold: ", z_threshold)
 
-            print("Mean: ", mean, "Standard deviation: ", std_dev)
+                table_df[flag_column] = table_df.apply(
+                    lambda row: bool(row[flag_column]) or
+                                (True
+                                 if (((float(row[col_to_analyze]) - mean) /
+                                            std_dev > z_threshold)
+                                        or
+                                     ((float(row[col_to_analyze]) - mean) /
+                                            std_dev < -z_threshold))
+                                else False)
+                    , axis=1)
 
-            if action_config_df['Method to use'].iloc[0] == 'zScore':
-                table_df[col_outlier] = table_df.apply(
-                    lambda row: 1 if (row[col_to_analyze]-mean)/std_dev
-                                     > z_threshold else 0
-                    ,
-                    axis=1
-                )
+
+            elif action_config_df['Method'].iloc[i] == 'IQR':
+                iqr_multiplier = float(action_config_df['Value'].iloc[i])
+                table_df = getattr(table_dfs, table_name)
+
+                numbers_l = []
+                for item in table_df[col_to_analyze]:
+                    numbers_l.append(float(item))
+                numpy_num_array = np.array(numbers_l)
+                q75, q25 = np.percentile(numpy_num_array, [75, 25])
+                iqr = q75 - q25
+                # print("First percentile: ", q25, "Third percentile: ", q75,
+                #       "Inter quartile range: ", iqr)
+                # print("IQR multiplier: ", iqr_multiplier)
+
+                table_df[flag_column] = table_df.apply(
+                    lambda row: bool(row[flag_column]) or
+                                (True if ((float(row[col_to_analyze]) >
+                                           q75 + (iqr_multiplier * iqr))
+                                        or
+                                        (float(row[col_to_analyze]) < q25
+                                         - (iqr_multiplier * iqr))
+                                        )
+                                else False)
+                    , axis=1)
+
+            elif action_config_df['Method'].iloc[i] == 'range':
+                lb, ub = action_config_df['Value'].iloc[i].split(',')
+                # print("Lower bound = ", lb,
+                #       ", Upper bound =", ub)
+                table_df = getattr(table_dfs, table_name)
+
+                table_df[flag_column] = table_df.apply(
+                    lambda row: bool(row[flag_column]) or
+                                (True if ((float(row[col_to_analyze]) >
+                                           float(ub))
+                                          or
+                                          (float(row[col_to_analyze]) <
+                                           float(lb)))
+                                 else False)
+                    , axis=1)
+
             else:
-                print("You have chosen IRQ")
+                print("Error: Please enter a valid value in Method to use ("
+                      "zScore, IQR, range).")
 
-        #writing data
+
+
+
+        # writing data
         self.write_data(table_dfs)
+
+        exit()
 
 
 if __name__ == '__main__':
