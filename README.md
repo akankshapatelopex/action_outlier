@@ -1,6 +1,6 @@
 # action_outlier
 
-This action detects outliers in a column of a table and flag it as true in a particular column, indicated as flag column. 
+This action detects outliers in one or more columns of a table and flag it as true in a particular column, indicated as flag column. 
 
 In settings, one needs to specify the column whose values have to be checked for outlier, the method used (details of which are discussed below), the value to be used with the methods, and the column which marks with 'true' if the row has any outlier in the columns which have been tested.
 
